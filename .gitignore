@@ -1,3 +1,6 @@
+.idea
+image-organizer-go
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
