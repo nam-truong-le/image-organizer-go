@@ -15,6 +15,7 @@ var searchKeys = []string{
 	"Date/Time Original",
 	"Create Date",
 	"Date Created",
+	"Modify Date",
 }
 
 var ignoredKey = []string{
@@ -22,7 +23,7 @@ var ignoredKey = []string{
 	"File Access Date/Time",
 	"File Inode Change Date/Time",
 	"Profile Date Time",
-	"Modify Date", // can we add this to searchKeys?
+	//"Modify Date", // can we add this to searchKeys?
 }
 
 var invalidValues = []string{
@@ -110,10 +111,15 @@ func getCreatedDate(items []exif) (*exif, bool) {
 	for _, searchKey := range searchKeys {
 		for _, item := range items {
 			if searchKey == item.Key {
+				invalid := false
 				for _, invalidValue := range invalidValues {
 					if strings.Contains(item.Value, invalidValue) {
-						return nil, false
+						invalid = true
+						break
 					}
+				}
+				if invalid {
+					continue
 				}
 
 				return &item, true
