@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Test" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="Move" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="image-organizer-go" />
     <working_directory value="$PROJECT_DIR$" />
     <parameters value="--source &quot;/Volumes/photo/iphone_nhung/2022.12.13.4&quot; --destination &quot;/Volumes/photo&quot;" />
