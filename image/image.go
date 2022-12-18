@@ -77,7 +77,7 @@ func DestinationDir(file string, analyzeMode bool) (string, error) {
 	if !foundCreatedDate {
 		return "", fmt.Errorf("no content created date found")
 	}
-	t, err := time.Parse("2006:01:02 15:04:05", exifCreatedDate.Value)
+	t, err := parseDate(exifCreatedDate.Value)
 	if err != nil {
 		logger.Fatalf("Invalid date format: %s", exifCreatedDate.Value)
 	}
@@ -88,6 +88,22 @@ func DestinationDir(file string, analyzeMode bool) (string, error) {
 type exif struct {
 	Key   string
 	Value string
+}
+
+var registeredDateFormats = []string{
+	"2006:01:02 15:04:05",
+	"2006:01:02 15:04:05-07:00",
+}
+
+func parseDate(val string) (*time.Time, error) {
+	for _, f := range registeredDateFormats {
+		t, err := time.Parse(f, val)
+		if err != nil {
+			continue
+		}
+		return &t, nil
+	}
+	return nil, fmt.Errorf("invalid date value: %s", val)
 }
 
 func getExif(exifOutput string) []exif {

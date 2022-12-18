@@ -27,6 +27,7 @@ var (
 	fSource      *string
 	fDestination *string
 	fAnalyzeDate *bool
+	fCheck       *bool
 )
 
 const (
@@ -39,18 +40,23 @@ func main() {
 	fSource = flag.String("source", "", "Input directory")
 	fDestination = flag.String("destination", "", "Output directory")
 	fAnalyzeDate = flag.Bool("analyzeDate", false, "This enables date analyze mode")
+	fCheck = flag.Bool("check", false, "This enables check mode")
 
 	flag.Parse()
 
 	if *fSource == "" {
-		logger.Fatalf("Missing parameter(s)")
+		logger.Fatalf("Missing parameter: --source")
 	}
 
-	if !*fAnalyzeDate && *fDestination == "" {
-		logger.Fatalf("Missing parameter(s)")
+	if !*fAnalyzeDate && !*fCheck {
+		if *fDestination == "" {
+			logger.Fatalf("Missing parameter: --destination")
+		}
 	}
 
-	fmt.Printf("Source = [%s] | Destination = [%s] | Analyze = [%t] ... continue? (y/n)\n", *fSource, *fDestination, *fAnalyzeDate)
+	fmt.Printf("Source = [%s] | Destination = [%s] | Analyze = [%t] | Check = [%t] ... continue? (y/n)\n",
+		*fSource, *fDestination, *fAnalyzeDate, *fCheck,
+	)
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	err := scanner.Err()
@@ -65,7 +71,7 @@ func main() {
 
 	if *fAnalyzeDate && len(falseNegativeFiles) > 0 {
 		logger.Warnf("FALSE NEGATIVE!!!")
-		lo.ForEach(falseNegativeFiles, func(f falseNegativeFile, i int) {
+		lo.ForEach(falseNegativeFiles, func(f fileResult, i int) {
 			logger.Warnf("%+v", f)
 		})
 
@@ -82,6 +88,32 @@ func main() {
 		}
 
 		for _, f := range falseNegativeFiles {
+			err := os.Rename(f.FullPath, fmt.Sprintf("%s/%s", dest, f.Name))
+			if err != nil {
+				logger.Fatalf("%s", err)
+			}
+		}
+	}
+
+	if *fCheck && len(falsePositiveFiles) > 0 {
+		logger.Warnf("FALSE NEGATIVE!!!")
+		lo.ForEach(falsePositiveFiles, func(f fileResult, i int) {
+			logger.Warnf("%+v", f)
+		})
+
+		fmt.Printf("Move these files to (empty value will skip): \n")
+		scanner = bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		err := scanner.Err()
+		if err != nil {
+			logger.Fatalf("%s", err)
+		}
+		dest := strings.TrimSpace(scanner.Text())
+		if dest == "" {
+			logger.Fatalf("Empty destination")
+		}
+
+		for _, f := range falsePositiveFiles {
 			err := os.Rename(f.FullPath, fmt.Sprintf("%s/%s", dest, f.Name))
 			if err != nil {
 				logger.Fatalf("%s", err)
@@ -122,12 +154,13 @@ func processDirEntry(source string, entry os.DirEntry, destination string) {
 
 var ignoredFiles = []string{".DS_Store"}
 
-type falseNegativeFile struct {
+type fileResult struct {
 	FullPath string
 	Name     string
 }
 
-var falseNegativeFiles = make([]falseNegativeFile, 0)
+var falseNegativeFiles = make([]fileResult, 0)
+var falsePositiveFiles = make([]fileResult, 0)
 
 func processFile(fileFullPath string, destination string, fileName string) {
 	logger := log.Logger()
@@ -142,11 +175,27 @@ func processFile(fileFullPath string, destination string, fileName string) {
 	if *fAnalyzeDate {
 		_, err := image.DestinationDir(fileFullPath, true)
 		if err == nil {
-			falseNegativeFiles = append(falseNegativeFiles, falseNegativeFile{
+			falseNegativeFiles = append(falseNegativeFiles, fileResult{
 				FullPath: fileFullPath,
 				Name:     fileName,
 			})
 			logger.Warnf("False negative files: %d", len(falseNegativeFiles))
+		}
+		return
+	}
+
+	// Check mod
+	if *fCheck {
+		destinationDir, err := image.DestinationDir(fileFullPath, false)
+		if err != nil {
+			logger.Fatalf("File [%s] doesn't have created date: %s", fileFullPath, err)
+		}
+		if !strings.Contains(fileFullPath, destination) {
+			logger.Warnf("File [%s] in wrong dir, should be in [%s]", fileFullPath, destinationDir)
+			falsePositiveFiles = append(falsePositiveFiles, fileResult{
+				FullPath: fileFullPath,
+				Name:     fileName,
+			})
 		}
 		return
 	}
@@ -191,6 +240,6 @@ func processFile(fileFullPath string, destination string, fileName string) {
 
 func stat() {
 	logger := log.Logger()
-	logger.Infof("Current total = %d | Processed = %d | Moved = %d | Move failed = %d | Date not found = %d | False negative = %d",
-		currentTotal, processed, moved, moveFailed, dateNotFound, len(falseNegativeFiles))
+	logger.Infof("Current total = %d | Processed = %d | Moved = %d | Move failed = %d | Date not found = %d | False negative = %d | False positive = %d",
+		currentTotal, processed, moved, moveFailed, dateNotFound, len(falseNegativeFiles), len(falsePositiveFiles))
 }
