@@ -3,7 +3,7 @@ module github.com/nam-truong-le/image-organizer-go
 go 1.19
 
 require (
-	github.com/samber/lo v1.52.0
+	github.com/samber/lo v1.53.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
 )
